@@ -79,11 +79,10 @@ if __name__ == "__main__":
 
     # ordinary least squares, determines beta
     res = ols(y=df['SPY'], x=df["VOO"])
+    print res
     beta_hr = res.beta.x
-    beta_print=str(beta_hr)
 
-
-    # determine residuals
+    # determine residuals,aka error in fit at each point
     df["res"] = df["SPY"] - beta_hr*df["VOO"]
 
     # plot the residuals from ols
@@ -93,10 +92,11 @@ if __name__ == "__main__":
     # see "http://statsmodels.sourceforge.net/devel/index.html"
     # for statsmodels documentation.
     print ""
-    print "Beta is "+ beta_print
+    print ""
     print ""
     cadf = ts.adfuller(df["res"])
-    print ""
     print "Cointegration Augmented Dicky Fuller results are:"
+    print ""
+    print ""
     print ""
     pprint.pprint(cadf)
