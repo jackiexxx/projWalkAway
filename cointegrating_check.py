@@ -11,8 +11,8 @@ import statsmodels.tsa.stattools as ts
 import datetime
 
 #enter ticker symbols here
-inst_x = "WFC"
-inst_y = "HSBC"
+inst_x = "LMT"
+inst_y = "RTN"
 
 #enter info for start stop dates, year xxxx, month yy, day zz
 #note if day or month is single digit, use single digit only, eg july = 7
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     plot_scatter_ts(df, inst_y, inst_x)
 
     # ordinary least squares, determines beta
-    res = ols(y=df['HSBC'], x=df[inst_y])
+    res = ols(y=df[inst_x], x=df[inst_y])
     beta_hr = res.beta.x
 
     # determine residuals,aka error in fit at each point
