@@ -1,4 +1,6 @@
 #cointegrating_check.py
+#Credit where credit is due: a lot of this was heavily borrowed from various blog posts from Michael Halls-Moore
+#His github is here: https://github.com/mhallsmoore
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
