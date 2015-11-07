@@ -1,6 +1,4 @@
 #cointegrating_check.py
-#Credit where credit is due: a lot of this was heavily borrowed from various blog posts from Michael Halls-Moore
-#His github is here: https://github.com/mhallsmoore
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -13,17 +11,17 @@ import statsmodels.tsa.stattools as ts
 import datetime
 
 #enter ticker symbols here
-inst_x = "LMT"
-inst_y = "RTN"
+inst_x = raw_input("Enter X ticker symbol: ")
+inst_y = raw_input("Enter Y ticker symbol: ")
 
 #enter info for start stop dates, year xxxx, month yy, day zz
 #note if day or month is single digit, use single digit only, eg july = 7
 start_year = 2013
-end_year = 2014
+end_year = 2015
 start_month_num = 1
-end_month_num = 7
+end_month_num = 9
 start_day_num = 1
-end_day_num = 15
+end_day_num = 1
 
 #sets up time series plot
 def plot_price_ts(df, ts1, ts2):
