@@ -1,0 +1,274 @@
+#mean_rev_pair.py
+#based on postings by michael halls moore and ernest p. chan
+#install the anaconda distribution of python, it will ensure all dependencies are handled
+
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import pandas as pd
+import numpy as np
+import pandas.io.data as web
+from pandas.stats.api import ols
+import pprint
+import statsmodels.tsa.stattools as ts
+import datetime
+
+def print_full(x):
+    pd.set_option('display.max_rows', len(x))
+    print(x)
+    pd.reset_option('display.max_rows')
+
+###########################################################################################
+
+#enter ticker symbols here
+inst_x = raw_input("Enter X ticker symbol: ")
+inst_y = raw_input("Enter Y ticker symbol: ")
+
+#enter info for start stop dates, year xxxx, month yy, day zz
+#note if day or month is single digit, use single digit only, eg july = 7
+start_year = int(raw_input("Enter start year (xxxx): "))
+end_year = int(raw_input("Enter end year (xxxx): "))
+start_month_num = int(raw_input("Enter start month (1-12): "))
+end_month_num = int(raw_input("Enter end month (1-12): "))
+start_day_num = int(raw_input("Enter start date (1-31): "))
+end_day_num = int(raw_input("Enter end date (1-31): "))
+
+#sets up time series plot
+def plot_reults(df, ts1, ts2):
+    months = mdates.MonthLocator()  # every month
+    fig, ax = plt.subplots()
+    ax.plot(df.index, df[ts1], label=ts1)
+    ax.plot(df.index, df[ts2], label=ts2)
+    ax.xaxis.set_major_locator(months)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.set_xlim(datetime.datetime(start_year, start_month_num, start_day_num), datetime.datetime(end_year, end_month_num, end_day_num))
+    ax.grid(True)
+    fig.autofmt_xdate()
+
+    plt.xlabel('Month/Year')
+    plt.ylabel('Cumulative Percent Growth')
+    plt.title('%s and %s Cumulative Percent Growth' % (ts1, ts2))
+    plt.legend()
+    plt.show()
+
+
+def plot_price_ts(df, ts1, ts2):
+    months = mdates.MonthLocator()  # every month
+    fig, ax = plt.subplots()
+    ax.plot(df.index, df[ts1], label=ts1)
+    ax.plot(df.index, df[ts2], label=ts2)
+    ax.xaxis.set_major_locator(months)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.set_xlim(datetime.datetime(start_year, start_month_num, start_day_num), datetime.datetime(end_year, end_month_num, end_day_num))
+    ax.grid(True)
+    fig.autofmt_xdate()
+
+    plt.xlabel('Month/Year')
+    plt.ylabel('Price ($)')
+    plt.title('%s and %s Daily Prices' % (ts1, ts2))
+    plt.legend()
+    plt.show()
+
+#sets up spread plot
+def plot_spread(df):
+    months = mdates.MonthLocator()  # every month
+    fig, ax = plt.subplots()
+    ax.plot(df.index, df["SPREAD"], label="Daily Price Spread")
+    ax.xaxis.set_major_locator(months)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.set_xlim(datetime.datetime(start_year, start_month_num, start_day_num), datetime.datetime(end_year, end_month_num, end_day_num))
+    ax.grid(True)
+    fig.autofmt_xdate()
+
+    plt.xlabel('Month/Year')
+    plt.ylabel('Price Spread ($)')
+    plt.title('Price Spread')
+    plt.legend()
+
+    plt.plot(df["SPREAD"])
+    plt.show()
+
+#sets up scatter plot
+def plot_scatter_ts(df, ts1, ts2):
+    plt.xlabel('%s Price ($)' % ts1)
+    plt.ylabel('%s Price ($)' % ts2)
+    plt.title('%s and %s Price Scatterplot' % (ts1, ts2))
+    plt.scatter(df[ts1], df[ts2])
+    plt.show()
+
+#sets up residuals plot
+def plot_resids(df):
+    months = mdates.MonthLocator()  # every month
+    fig, ax = plt.subplots()
+    ax.plot(df.index, df["RESIDUALS"], label="Residuals")
+    ax.xaxis.set_major_locator(months)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.set_xlim(datetime.datetime(start_year, start_month_num, start_day_num), datetime.datetime(end_year, end_month_num, end_day_num))
+    ax.grid(True)
+    fig.autofmt_xdate()
+
+    plt.xlabel('Month/Year')
+    plt.ylabel('Price ($)')
+    plt.title('Residual Plot')
+    plt.legend()
+
+    plt.plot(df["RESIDUALS"])
+    plt.show()
+
+#fetch in data, note: "if" statement below should be removed
+start = datetime.datetime(start_year, start_month_num, start_day_num)
+end = datetime.datetime(end_year, end_month_num, end_day_num)
+x_term = web.DataReader(inst_y, "yahoo", start, end)
+y_term = web.DataReader(inst_x, "yahoo", start, end)
+z_term = web.DataReader("SPY", "yahoo", start, end)
+
+df = pd.DataFrame(index=x_term.index)
+df[inst_x] = x_term["Adj Close"]
+df[inst_y] = y_term["Adj Close"]
+df["SPREAD"] = x_term["Adj Close"]-y_term["Adj Close"]
+
+
+coin_check = raw_input("Run cointegration check? (y/n): ")
+
+if coin_check == "y":
+    # plots time series
+    plot_price_ts(df, inst_y, inst_x)
+
+    # plots data scatter for vis inspection
+    plot_scatter_ts(df, inst_y, inst_x)
+
+    # plots price spread
+    plot_spread(df)
+
+    # ordinary least squares, determines beta
+    res = ols(y=df[inst_y], x=df[inst_x])
+    beta_hr = res.beta.x
+
+    # determine residuals,aka error in fit at each point
+    df["RESIDUALS"] = df[inst_y] - beta_hr*df[inst_x]
+
+    # plot the residuals from ols
+    plot_resids(df)
+
+    # determine and pretty print the CADF test on residuals.
+    # see "http://statsmodels.sourceforge.net/devel/index.html"
+    # for statsmodels documentation.
+    print "#############################"
+    print "#############################"
+    print "#############################"
+    print df
+    print "#############################"
+    print "#############################"
+    print "#############################"
+    print res
+    print ""
+    print ""
+    print "#############################"
+    print "#############################"
+    print "#############################"
+    print ""
+    print ""
+    cadf = ts.adfuller(df["RESIDUALS"])
+    print "Cointegration Augmented Dicky Fuller results are: "
+    print ""
+    pprint.pprint(cadf)
+
+else:
+	print"Very swell."
+
+#############Backtest stuff starts here
+
+backTest = raw_input("Run backtest or exit? (b/e): ")
+if backTest == "b":
+	
+	lookBack = int(raw_input("Set desired lookback #: "))
+	z_ent = float(raw_input("Set desired entry z score #: "))
+	z_ex = float(raw_input("Set desired exit z score #: "))
+
+	#function to handle moving window calcs, mean, stddev, z score, etc.
+
+	def calc_spread_zscore(df,look):
+		regress_mod = ols(y=df[inst_y], x=df[inst_x], window = look)
+		df["HEDGE_RATIO"] = regress_mod.beta["x"]
+		df["Z_SCORE"] = (df["SPREAD"] - pd.rolling_mean(df["SPREAD"], window = look))/pd.rolling_std(df["SPREAD"], window = look)
+		#drops the number of items that do not meet the lookback time,
+		#eg if the lookback is ten, it drops the first ten items since
+		#no beta can be calculated for those.
+		df = df.dropna()
+		return df
+
+	def calc_trade_signals(df, z_enter = z_ent, z_exit = z_ex):
+		#determine when to be long/short
+		df["LONGS"] = (df["Z_SCORE"] <= -z_enter)*1.0
+		df["SHORTS"] = (df["Z_SCORE"] >= z_enter)*1.0
+		df["EXITS"] = (np.abs(df["Z_SCORE"]) <= z_exit)*1.0
+		# These propagate a position forward for 
+		# when z score does not meet criteria to enter/exit the market
+		df["LONG_MARKET"] = 0.0
+		df["SHORT_MARKET"] = 0.0
+		long_market = 0
+		short_market = 0
+
+		#iterate over the dataframe, flags when to be
+		#in the market and when not to be. Giddy up.
+		for i, b in enumerate(df.iterrows()):
+			#determine long
+			if b[1]["LONGS"] == 1.0:
+				long_market = 1
+			#determine short
+			if b[1]["SHORTS"] == 1.0:
+				short_market = 1
+			#determine exit
+			if b[1]["EXITS"] == 1.0:
+				long_market = 0
+				short_market = 0
+			#assign the appropriate 1/0 values from the above
+			#if statements to the associated columns
+			#this is how the model knows to stay in the market or out
+			df.ix[i]["LONG_MARKET"] = long_market
+			df.ix[i]["SHORT_MARKET"] = short_market
+		return df
+
+	#track my returns
+	def my_returns(df):
+		my_port = pd.DataFrame(index=df.index)
+		my_port["POSITIONS"]= df["LONG_MARKET"]-df["SHORT_MARKET"]
+		my_port[inst_x] = -1.0 * df[inst_x] * my_port['POSITIONS']
+		my_port[inst_y] = df[inst_y] * my_port['POSITIONS']
+		my_port['TOTAL'] = my_port[inst_x] + my_port[inst_y]
+		my_port["RETURNS_TO_DATE"] = my_port["TOTAL"].pct_change()
+		my_port["RETURNS_TO_DATE"].fillna(0.0, inplace=True)
+		my_port["RETURNS_TO_DATE"].replace([np.inf, -np.inf], 0.0, inplace=True)
+		my_port["RETURNS_TO_DATE"].replace(-1.0, 0.0, inplace=True)
+		my_port["RETURNS_TO_DATE"] = (my_port["RETURNS_TO_DATE"] + 1.0).cumprod()
+		return my_port
+		
+
+	calc_spread_zscore(df,lookBack)
+	calc_trade_signals(df)
+	my_returns(df)
+#this stuff presents the returns from your model and plots
+#is against the baseline S&P500 returns in the same period
+#note that it will drop any dates that do not exist in both time series.
+#this is done for ease of plotting.
+	my_port_returns = pd.DataFrame(index=df.index)
+	my_port_returns["POSITIONS"]= df["LONG_MARKET"]-df["SHORT_MARKET"]
+	my_port_returns[inst_x] = -1.0 * df[inst_x] * my_port_returns['POSITIONS']
+	my_port_returns[inst_y] = df[inst_y] * my_port_returns['POSITIONS']
+	my_port_returns['TOTAL'] = my_port_returns[inst_x] + my_port_returns[inst_y]
+	my_port_returns["RETURNS_TO_DATE"] = my_port_returns["TOTAL"].pct_change()
+	my_port_returns["RETURNS_TO_DATE"].fillna(0.0, inplace=True)
+	my_port_returns["RETURNS_TO_DATE"].replace([np.inf, -np.inf], 0.0, inplace=True)
+	my_port_returns["RETURNS_TO_DATE"].replace(-1.0, 0.0, inplace=True)
+	my_port_returns["RETURNS_TO_DATE"] = (my_port_returns["RETURNS_TO_DATE"] + 1.0).cumprod()
+	print my_port_returns
+	my_port_returns["S&P500"] = z_term["Adj Close"]
+	my_port_returns["S&P500_Percent_Growth"] = my_port_returns["S&P500"].pct_change()
+	my_port_returns["S&P500_Percent_Growth"].fillna(0.0, inplace=True)
+	my_port_returns["S&P500_Percent_Growth"].replace([np.inf, -np.inf], 0.0, inplace=True)
+	my_port_returns["S&P500_Percent_Growth"].replace(-1.0, 0.0, inplace=True)
+	my_port_returns["S&P500_Percent_Growth"] = (my_port_returns["S&P500_Percent_Growth"] + 1.0).cumprod()
+	my_port_returns=my_port_returns.dropna()
+
+	plot_reults(my_port_returns,"RETURNS_TO_DATE","S&P500_Percent_Growth")
+else:
+	print "Thanks for coming out."
